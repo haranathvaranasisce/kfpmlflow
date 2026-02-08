@@ -1,0 +1,10 @@
+# Core dependencies for KFP V2 pipeline
+kfp==2.5.0
+
+# Data science and ML libraries
+pandas==2.0.3
+scikit-learn==1.3.0
+numpy==1.24.3
+
+# For serialization
+pickle5==0.0.11; python_version < '3.8'
