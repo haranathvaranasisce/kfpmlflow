@@ -1,0 +1,274 @@
+# PIPELINE DEFINITION
+# Name: ml-pipeline-v2
+# Description: KFP V2 ML pipeline with dataprep, train, and score components using base_image and target_image
+components:
+  comp-dataprep-op:
+    executorLabel: exec-dataprep-op
+    outputDefinitions:
+      artifacts:
+        test_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-score-op:
+    executorLabel: exec-score-op
+    inputDefinitions:
+      artifacts:
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          description: Trained model path
+        test_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+          description: Test dataset path
+    outputDefinitions:
+      artifacts:
+        predictions:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        scores:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-train-op:
+    executorLabel: exec-train-op
+    inputDefinitions:
+      artifacts:
+        train_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+          description: Training dataset path
+    outputDefinitions:
+      artifacts:
+        metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-dataprep-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataprep_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.0.3'\
+          \ 'scikit-learn==1.3.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataprep_op(\n    train_data: Output[Dataset],\n    test_data:\
+          \ Output[Dataset]\n):\n    \"\"\"\n    Data preparation component that outputs\
+          \ train and test datasets.\n\n    Args:\n        train_data: Output training\
+          \ dataset\n        test_data: Output test dataset\n    \"\"\"\n    # Define\
+          \ the check function inline to ensure it's available at runtime\n    def\
+          \ check(component_name: str) -> str:\n        \"\"\"Check function from\
+          \ common.utils\"\"\"\n        message = f\"Check called from {component_name}\
+          \ - validation successful\"\n        print(message)\n        return message\n\
+          \n    import pandas as pd\n\n    # Call check function from commons\n  \
+          \  check(\"dataprep\")\n\n    # Create sample data\n    print(\"Preparing\
+          \ training and test datasets...\")\n\n    # Create sample train data\n \
+          \   train_df = pd.DataFrame({\n        'feature1': [1, 2, 3, 4, 5],\n  \
+          \      'feature2': [2, 4, 6, 8, 10],\n        'target': [0, 1, 0, 1, 0]\n\
+          \    })\n\n    # Create sample test data\n    test_df = pd.DataFrame({\n\
+          \        'feature1': [6, 7, 8],\n        'feature2': [12, 14, 16],\n   \
+          \     'target': [1, 0, 1]\n    })\n\n    # Save datasets to output artifacts\n\
+          \    train_df.to_csv(train_data.path, index=False)\n    test_df.to_csv(test_data.path,\
+          \ index=False)\n\n    print(f\"Train data saved with {len(train_df)} rows\"\
+          )\n    print(f\"Test data saved with {len(test_df)} rows\")\n\n"
+        image: python:3.9
+    exec-score-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - score_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.0.3'\
+          \ 'scikit-learn==1.3.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef score_op(\n    model: Input[Model],\n    test_data: Input[Dataset],\n\
+          \    predictions: Output[Dataset],\n    scores: Output[Metrics]\n):\n  \
+          \  \"\"\"\n    Score component that loads model and makes predictions on\
+          \ test data.\n\n    Args:\n        model: Trained model path\n        test_data:\
+          \ Test dataset path\n        predictions: Output predictions dataset\n \
+          \       scores: Output test scores\n    \"\"\"\n    # Define the check function\
+          \ inline to ensure it's available at runtime\n    def check(component_name:\
+          \ str) -> str:\n        \"\"\"Check function from common.utils\"\"\"\n \
+          \       message = f\"Check called from {component_name} - validation successful\"\
+          \n        print(message)\n        return message\n\n    import pandas as\
+          \ pd\n    import json\n    import pickle\n    from sklearn.metrics import\
+          \ accuracy_score, precision_score, recall_score\n\n    # Call check function\
+          \ from commons\n    check(\"score\")\n\n    print(f\"Loading model from:\
+          \ {model.path}\")\n    print(f\"Loading test data from: {test_data.path}\"\
+          )\n\n    # Load model\n    with open(model.path, 'rb') as f:\n        trained_model\
+          \ = pickle.load(f)\n\n    # Load test data\n    test_df = pd.read_csv(test_data.path)\n\
+          \n    # Prepare features and target\n    X_test = test_df[['feature1', 'feature2']]\n\
+          \    y_test = test_df['target']\n\n    # Make predictions\n    print(f\"\
+          Making predictions on {len(test_df)} samples...\")\n    y_pred = trained_model.predict(X_test)\n\
+          \n    # Calculate test scores\n    scores_dict = {\n        'test_accuracy':\
+          \ float(accuracy_score(y_test, y_pred)),\n        'test_precision': float(precision_score(y_test,\
+          \ y_pred, zero_division=0)),\n        'test_recall': float(recall_score(y_test,\
+          \ y_pred, zero_division=0))\n    }\n\n    print(f\"Test scores: {scores_dict}\"\
+          )\n\n    # Save predictions\n    predictions_df = test_df.copy()\n    predictions_df['predictions']\
+          \ = y_pred\n    predictions_df.to_csv(predictions.path, index=False)\n\n\
+          \    # Save scores\n    with open(scores.path, 'w') as f:\n        json.dump(scores_dict,\
+          \ f, indent=2)\n\n    # Log scores to KFP\n    scores.log_metric('test_accuracy',\
+          \ scores_dict['test_accuracy'])\n    scores.log_metric('test_precision',\
+          \ scores_dict['test_precision'])\n    scores.log_metric('test_recall', scores_dict['test_recall'])\n\
+          \n    print(\"Predictions and scores saved successfully\")\n\n"
+        image: python:3.9
+    exec-train-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.0.3'\
+          \ 'scikit-learn==1.3.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.15.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_op(\n    train_data: Input[Dataset],\n    model: Output[Model],\n\
+          \    metrics: Output[Metrics]\n):\n    \"\"\"\n    Training component that\
+          \ takes train dataset and outputs metrics and model.\n\n    Args:\n    \
+          \    train_data: Training dataset path\n        model: Output trained model\n\
+          \        metrics: Output training metrics\n    \"\"\"\n    # Define the\
+          \ check function inline to ensure it's available at runtime\n    def check(component_name:\
+          \ str) -> str:\n        \"\"\"Check function from common.utils\"\"\"\n \
+          \       message = f\"Check called from {component_name} - validation successful\"\
+          \n        print(message)\n        return message\n\n    import pandas as\
+          \ pd\n    import json\n    import pickle\n    from sklearn.linear_model\
+          \ import LogisticRegression\n    from sklearn.metrics import accuracy_score,\
+          \ precision_score, recall_score\n\n    # Call check function from commons\n\
+          \    check(\"train\")\n\n    print(f\"Loading training data from: {train_data.path}\"\
+          )\n\n    # Load training data\n    train_df = pd.read_csv(train_data.path)\n\
+          \n    # Prepare features and target\n    X_train = train_df[['feature1',\
+          \ 'feature2']]\n    y_train = train_df['target']\n\n    # Train model\n\
+          \    print(f\"Training logistic regression model on {len(train_df)} samples...\"\
+          )\n    trained_model = LogisticRegression()\n    trained_model.fit(X_train,\
+          \ y_train)\n\n    # Calculate metrics\n    y_pred = trained_model.predict(X_train)\n\
+          \    metrics_dict = {\n        'accuracy': float(accuracy_score(y_train,\
+          \ y_pred)),\n        'precision': float(precision_score(y_train, y_pred,\
+          \ zero_division=0)),\n        'recall': float(recall_score(y_train, y_pred,\
+          \ zero_division=0))\n    }\n\n    print(f\"Training metrics: {metrics_dict}\"\
+          )\n\n    # Save model\n    with open(model.path, 'wb') as f:\n        pickle.dump(trained_model,\
+          \ f)\n\n    # Save metrics\n    with open(metrics.path, 'w') as f:\n   \
+          \     json.dump(metrics_dict, f, indent=2)\n\n    # Log metrics to KFP\n\
+          \    metrics.log_metric('accuracy', metrics_dict['accuracy'])\n    metrics.log_metric('precision',\
+          \ metrics_dict['precision'])\n    metrics.log_metric('recall', metrics_dict['recall'])\n\
+          \n    print(\"Model and metrics saved successfully\")\n\n"
+        image: python:3.9
+pipelineInfo:
+  description: KFP V2 ML pipeline with dataprep, train, and score components using
+    base_image and target_image
+  name: ml-pipeline-v2
+root:
+  dag:
+    tasks:
+      dataprep-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-dataprep-op
+        taskInfo:
+          name: dataprep-op
+      score-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-score-op
+        dependentTasks:
+        - dataprep-op
+        - train-op
+        inputs:
+          artifacts:
+            model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: train-op
+            test_data:
+              taskOutputArtifact:
+                outputArtifactKey: test_data
+                producerTask: dataprep-op
+        taskInfo:
+          name: score-op
+      train-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-op
+        dependentTasks:
+        - dataprep-op
+        inputs:
+          artifacts:
+            train_data:
+              taskOutputArtifact:
+                outputArtifactKey: train_data
+                producerTask: dataprep-op
+        taskInfo:
+          name: train-op
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.15.2

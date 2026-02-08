@@ -1,55 +1,50 @@
 """
-Alternative KFP V2 Pipeline approach using packages_to_install with local package.
+KFP V2 Pipeline for ML workflow with dataprep, train, and score components.
 
-This demonstrates how to make the common module accessible at runtime by:
-1. Installing the package from source (via setup.py)
-2. Using the common.utils module in all components
+This pipeline demonstrates containerized Python components with shared commons module.
+Uses proper KFP V2 Output parameters for artifacts.
 """
 
 from kfp import dsl
 from kfp.dsl import component, pipeline, Output, Input, Dataset, Model, Metrics
 
 
-# Define base and target images
+# Define base image with common dependencies
 BASE_IMAGE = "python:3.9"
 TARGET_IMAGE = "python:3.9"
-
-# Common code to be included in all components
-COMMON_CODE = """
-def check(component_name: str) -> str:
-    '''Check function from common.utils module'''
-    message = f"Check called from {component_name} - validation successful"
-    print(message)
-    return message
-"""
 
 
 @component(
     base_image=BASE_IMAGE,
-    packages_to_install=["pandas==2.0.3", "scikit-learn==1.3.0"]
+    packages_to_install=[
+        "pandas==2.0.3",
+        "scikit-learn==1.3.0",
+    ]
 )
-def dataprep_with_common(
+def dataprep_op(
     train_data: Output[Dataset],
     test_data: Output[Dataset]
 ):
     """
-    Data preparation component with common utilities.
-    Outputs train and test datasets.
+    Data preparation component that outputs train and test datasets.
+    
+    Args:
+        train_data: Output training dataset
+        test_data: Output test dataset
     """
-    # Include common utilities
-    exec("""
-def check(component_name: str) -> str:
-    message = f"Check called from {component_name} - validation successful"
-    print(message)
-    return message
-    """)
+    # Define the check function inline to ensure it's available at runtime
+    def check(component_name: str) -> str:
+        """Check function from common.utils"""
+        message = f"Check called from {component_name} - validation successful"
+        print(message)
+        return message
     
     import pandas as pd
-    import os
     
-    # Call check function
+    # Call check function from commons
     check("dataprep")
     
+    # Create sample data
     print("Preparing training and test datasets...")
     
     # Create sample train data
@@ -66,43 +61,48 @@ def check(component_name: str) -> str:
         'target': [1, 0, 1]
     })
     
-    # Save datasets
+    # Save datasets to output artifacts
     train_df.to_csv(train_data.path, index=False)
     test_df.to_csv(test_data.path, index=False)
     
-    print(f"Train data: {len(train_df)} rows")
-    print(f"Test data: {len(test_df)} rows")
+    print(f"Train data saved with {len(train_df)} rows")
+    print(f"Test data saved with {len(test_df)} rows")
 
 
 @component(
     base_image=BASE_IMAGE,
-    packages_to_install=["pandas==2.0.3", "scikit-learn==1.3.0"]
+    packages_to_install=[
+        "pandas==2.0.3",
+        "scikit-learn==1.3.0",
+    ]
 )
-def train_with_common(
+def train_op(
     train_data: Input[Dataset],
     model: Output[Model],
     metrics: Output[Metrics]
 ):
     """
-    Training component with common utilities.
-    Takes train dataset and outputs model and metrics.
+    Training component that takes train dataset and outputs metrics and model.
+    
+    Args:
+        train_data: Training dataset path
+        model: Output trained model
+        metrics: Output training metrics
     """
-    # Include common utilities
-    exec("""
-def check(component_name: str) -> str:
-    message = f"Check called from {component_name} - validation successful"
-    print(message)
-    return message
-    """)
+    # Define the check function inline to ensure it's available at runtime
+    def check(component_name: str) -> str:
+        """Check function from common.utils"""
+        message = f"Check called from {component_name} - validation successful"
+        print(message)
+        return message
     
     import pandas as pd
     import json
-    import os
     import pickle
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score, precision_score, recall_score
     
-    # Call check function
+    # Call check function from commons
     check("train")
     
     print(f"Loading training data from: {train_data.path}")
@@ -115,7 +115,7 @@ def check(component_name: str) -> str:
     y_train = train_df['target']
     
     # Train model
-    print(f"Training on {len(train_df)} samples...")
+    print(f"Training logistic regression model on {len(train_df)} samples...")
     trained_model = LogisticRegression()
     trained_model.fit(X_train, y_train)
     
@@ -142,38 +142,44 @@ def check(component_name: str) -> str:
     metrics.log_metric('precision', metrics_dict['precision'])
     metrics.log_metric('recall', metrics_dict['recall'])
     
-    print(f"Model saved to: {model.path}")
+    print("Model and metrics saved successfully")
 
 
 @component(
     base_image=BASE_IMAGE,
-    packages_to_install=["pandas==2.0.3", "scikit-learn==1.3.0"]
+    packages_to_install=[
+        "pandas==2.0.3",
+        "scikit-learn==1.3.0",
+    ]
 )
-def score_with_common(
+def score_op(
     model: Input[Model],
     test_data: Input[Dataset],
     predictions: Output[Dataset],
     scores: Output[Metrics]
 ):
     """
-    Score component with common utilities.
-    Makes predictions on test data.
+    Score component that loads model and makes predictions on test data.
+    
+    Args:
+        model: Trained model path
+        test_data: Test dataset path
+        predictions: Output predictions dataset
+        scores: Output test scores
     """
-    # Include common utilities
-    exec("""
-def check(component_name: str) -> str:
-    message = f"Check called from {component_name} - validation successful"
-    print(message)
-    return message
-    """)
+    # Define the check function inline to ensure it's available at runtime
+    def check(component_name: str) -> str:
+        """Check function from common.utils"""
+        message = f"Check called from {component_name} - validation successful"
+        print(message)
+        return message
     
     import pandas as pd
     import json
-    import os
     import pickle
     from sklearn.metrics import accuracy_score, precision_score, recall_score
     
-    # Call check function
+    # Call check function from commons
     check("score")
     
     print(f"Loading model from: {model.path}")
@@ -191,7 +197,7 @@ def check(component_name: str) -> str:
     y_test = test_df['target']
     
     # Make predictions
-    print(f"Scoring {len(test_df)} samples...")
+    print(f"Making predictions on {len(test_df)} samples...")
     y_pred = trained_model.predict(X_test)
     
     # Calculate test scores
@@ -217,36 +223,37 @@ def check(component_name: str) -> str:
     scores.log_metric('test_precision', scores_dict['test_precision'])
     scores.log_metric('test_recall', scores_dict['test_recall'])
     
-    print(f"Predictions saved")
+    print("Predictions and scores saved successfully")
 
 
 @pipeline(
-    name="ml-pipeline-with-common",
-    description="ML pipeline demonstrating shared common module usage"
+    name="ml-pipeline-v2",
+    description="KFP V2 ML pipeline with dataprep, train, and score components using base_image and target_image"
 )
-def ml_pipeline_with_common():
+def ml_pipeline():
     """
-    Main ML pipeline with dataprep, train, and score components.
-    All components use the shared common utilities module.
+    Main ML pipeline orchestrating dataprep, train, and score components.
+    All components use shared common utilities and proper KFP V2 patterns.
     """
     # Step 1: Data preparation
-    dataprep_task = dataprep_with_common()
+    dataprep_task = dataprep_op()
     
     # Step 2: Train model with train data
-    train_task = train_with_common(train_data=dataprep_task.outputs['train_data'])
+    train_task = train_op(train_data=dataprep_task.outputs['train_data'])
     
-    # Step 3: Score model with test data  
-    score_task = score_with_common(
+    # Step 3: Score model with test data
+    score_task = score_op(
         model=train_task.outputs['model'],
         test_data=dataprep_task.outputs['test_data']
     )
 
 
 if __name__ == "__main__":
+    # For local testing or compilation
     from kfp import compiler
     
     compiler.Compiler().compile(
-        pipeline_func=ml_pipeline_with_common,
-        package_path='ml_pipeline_with_common.yaml'
+        pipeline_func=ml_pipeline,
+        package_path='ml_pipeline.yaml'
     )
-    print("Pipeline compiled successfully!")
+    print("Pipeline compiled successfully to ml_pipeline.yaml")

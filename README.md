@@ -80,7 +80,7 @@ This function is called by all three components (dataprep, train, score) to demo
 
 ## Usage
 
-### Installation
+### Quick Start
 
 ```bash
 # Install dependencies
@@ -88,7 +88,12 @@ pip install -r requirements.txt
 
 # Install package to make common module accessible
 pip install -e .
+
+# Compile pipeline (recommended variant)
+python pipeline_v2.py
 ```
+
+For detailed usage instructions, see [USAGE.md](USAGE.md).
 
 ### Compile Pipeline
 
