@@ -3,9 +3,16 @@ from kfp import dsl
 from kfp import compiler
 
 # Import the component functions
-from dataprep import dataprep
-from train import train
-from score import score
+try:
+    # When used as a module
+    from .dataprep import dataprep
+    from .train import train
+    from .score import score
+except ImportError:
+    # When run as a script
+    from dataprep import dataprep
+    from train import train
+    from score import score
 
 
 @dsl.pipeline(
