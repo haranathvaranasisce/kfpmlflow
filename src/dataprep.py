@@ -3,8 +3,10 @@ from kfp import dsl
 
 try:
     from .config import BASE_IMAGE, TARGET_IMAGE
+    from .common.util import print_module_name
 except ImportError:
     from config import BASE_IMAGE, TARGET_IMAGE
+    from common.util import print_module_name
 
 
 @dsl.component(
@@ -27,6 +29,9 @@ def dataprep(
     """
     import pandas as pd
     import json
+    
+    # Print module name using common utility
+    print_module_name()
     
     # Create sample data if input_data_path is empty or doesn't exist
     # This is a placeholder implementation

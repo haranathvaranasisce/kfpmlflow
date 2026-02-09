@@ -3,8 +3,10 @@ from kfp import dsl
 
 try:
     from .config import BASE_IMAGE, TARGET_IMAGE
+    from .common.util import print_module_name
 except ImportError:
     from config import BASE_IMAGE, TARGET_IMAGE
+    from common.util import print_module_name
 
 
 @dsl.component(
@@ -31,6 +33,9 @@ def train(
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import accuracy_score
+    
+    # Print module name using common utility
+    print_module_name()
     
     try:
         # Load prepared data

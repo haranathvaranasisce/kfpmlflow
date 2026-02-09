@@ -3,8 +3,10 @@ from kfp import dsl
 
 try:
     from .config import BASE_IMAGE, TARGET_IMAGE
+    from .common.util import print_module_name
 except ImportError:
     from config import BASE_IMAGE, TARGET_IMAGE
+    from common.util import print_module_name
 
 
 @dsl.component(
@@ -31,6 +33,9 @@ def score(
     import json
     import pickle
     from sklearn.metrics import accuracy_score, classification_report
+    
+    # Print module name using common utility
+    print_module_name()
     
     try:
         # Load model
