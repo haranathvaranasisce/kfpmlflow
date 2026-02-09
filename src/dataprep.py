@@ -1,10 +1,15 @@
 """Data preparation component for the ML pipeline."""
 from kfp import dsl
 
+try:
+    from .config import BASE_IMAGE, TARGET_IMAGE
+except ImportError:
+    from config import BASE_IMAGE, TARGET_IMAGE
+
 
 @dsl.component(
-    base_image='python:3.11',
-    target_image='gcr.io/my-project/my-component:v1'
+    base_image=BASE_IMAGE,
+    target_image=TARGET_IMAGE
 )
 def dataprep(
     input_data_path: str,
@@ -35,9 +40,14 @@ def dataprep(
         df = pd.DataFrame(data)
         
         # Perform data preprocessing
-        # Normalize features
-        df['feature1'] = (df['feature1'] - df['feature1'].mean()) / df['feature1'].std()
-        df['feature2'] = (df['feature2'] - df['feature2'].mean()) / df['feature2'].std()
+        # Normalize features using safe normalization (handles zero std)
+        for col in ['feature1', 'feature2']:
+            mean = df[col].mean()
+            std = df[col].std()
+            if std > 0:
+                df[col] = (df[col] - mean) / std
+            else:
+                df[col] = df[col] - mean  # Only center if std is zero
         
         # Save processed data
         with open(output_data_path, 'w') as f:

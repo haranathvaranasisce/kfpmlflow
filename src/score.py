@@ -1,10 +1,15 @@
 """Model scoring component for the ML pipeline."""
 from kfp import dsl
 
+try:
+    from .config import BASE_IMAGE, TARGET_IMAGE
+except ImportError:
+    from config import BASE_IMAGE, TARGET_IMAGE
+
 
 @dsl.component(
-    base_image='python:3.11',
-    target_image='gcr.io/my-project/my-component:v1'
+    base_image=BASE_IMAGE,
+    target_image=TARGET_IMAGE
 )
 def score(
     model_path: str,

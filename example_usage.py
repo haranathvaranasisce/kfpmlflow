@@ -106,7 +106,7 @@ def show_component_details():
 def main():
     """Run all examples."""
     print("\n" + "=" * 60)
-    print("KFP MLflow - Component Usage Examples")
+    print("KFP Component Usage Examples")
     print("=" * 60 + "\n")
     
     # Show component details

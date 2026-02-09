@@ -110,7 +110,7 @@ def test_pipeline_compilation():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("KFP MLflow Component Test Suite")
+    print("KFP Component Test Suite")
     print("=" * 50)
     
     success = True
